@@ -33,10 +33,10 @@ __host__ __device__ vect vect::operator/=(double s) {
   return *this;
 };
 
-__host__ __device__ double vect::len_squared() const {
+__host__ __device__ double vect::lenSquared() const {
   return (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 };
 
 __host__ __device__ double vect::len() const {
-  return std::sqrt(len_squared());
+  return std::sqrt(lenSquared());
 };

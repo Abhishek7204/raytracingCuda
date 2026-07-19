@@ -34,6 +34,7 @@ profile: $(TARGET)
 	rm -f profile.ncu-rep
 	sudo ncu --export profile ./$(TARGET)
 	ncu-ui profile.ncu-rep
+
 clean:
 	rm -f $(OBJ) $(TARGET) $(IMG)
 

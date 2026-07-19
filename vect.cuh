@@ -24,7 +24,7 @@ public:
   __host__ __device__ vect operator-=(const vect &vec);
   __host__ __device__ vect operator/=(double s);
 
-  __host__ __device__ double len_squared() const;
+  __host__ __device__ double lenSquared() const;
   __host__ __device__ double len() const;
 };
 
@@ -63,17 +63,19 @@ __host__ __device__ inline vect operator/(double s, const vect &vec) {
   return vect(vec[0] / s, vec[1] / s, vec[2] / s);
 }
 
-__host__ __device__ inline double dot(const vect &vec1, const vect &vec2) {
+__host__ __device__ inline double dotProduct(const vect &vec1,
+                                             const vect &vec2) {
   return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2];
 }
 
-__host__ __device__ inline vect cross(const vect &vec1, const vect &vec2) {
+__host__ __device__ inline vect crossProduct(const vect &vec1,
+                                             const vect &vec2) {
   return vect(vec1[1] * vec2[2] - vec1[2] * vec2[1],
               vec1[2] * vec2[0] - vec1[0] * vec2[2],
               vec1[0] * vec2[1] - vec1[1] * vec2[0]);
 }
 
-__host__ __device__ inline vect unit_vect(const vect &vec) {
+__host__ __device__ inline vect unitVect(const vect &vec) {
   return vec / vec.len();
 }
 
