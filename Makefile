@@ -1,32 +1,40 @@
-CUDA_PATH     ?= /usr/local/cuda
-HOST_COMPILER  = g++
-NVCC           = $(CUDA_PATH)/bin/nvcc -ccbin $(HOST_COMPILER)
-IMGVIEWER = gwenview
+CUDA_PATH ?= /usr/local/cuda
 
-DIR := $(CURDIR)
-IMG = $(DIR)/out.ppm
-# select one of these for Debug vs. Release
-NVCC_DBG       = -g -G
-#NVCC_DBG       =
+HOST_COMPILER := g++
+NVCC := $(CUDA_PATH)/bin/nvcc -ccbin $(HOST_COMPILER)
 
-NVCCFLAGS      = $(NVCC_DBG) -m64
+IMGVIEWER := gwenview
 
-all: out.ppm
-	$(IMGVIEWER) $(IMG)
+SRC := $(wildcard *.cu)
+OBJ := $(SRC:.cu=.o)
+HDR := $(wildcard *.cuh *.h *.hpp)
 
-cudart.out: main.cu
-	$(NVCC) $(NVCCFLAGS) $(GENCODE_FLAGS) -o cudart.out main.cu
+TARGET := cudart.out
+IMG := out.ppm
 
-out.ppm: cudart.out
-	rm -f $(IMG)
-	./cudart.out > $(IMG)
+NVCCFLAGS := -g -G -m64 -rdc=true
 
-profile_basic: cudart.out
-	nvprof ./cudart.out > $(IMG)
+all: $(IMG)
 
-# use nvprof --query-metrics
-profile_metrics: cudart.out
-	nvprof --metrics achieved_occupancy,inst_executed,inst_fp_32,inst_fp_64,inst_integer ./cudart.out > out.ppm
+$(IMG): $(TARGET)
+	rm -f $@
+	./$(TARGET)
+	$(IMGVIEWER) $@
 
+$(TARGET): $(OBJ)
+	$(NVCC) $(NVCCFLAGS) -o $@ $(OBJ)
+
+%.o: %.cu $(HDR)
+	$(NVCC) $(NVCCFLAGS) -dc -c $< -o $@
+
+view: $(IMG)
+	nohup $(IMGVIEWER) $(IMG) >/dev/null 2>&1 &
+
+profile: $(TARGET)
+	rm -f profile.ncu-rep
+	sudo ncu --export profile ./$(TARGET)
+	ncu-ui profile.ncu-rep
 clean:
-	rm -f cudart.out out.ppm out.jpg
+	rm -f $(OBJ) $(TARGET) $(IMG)
+
+.PHONY: all clean
