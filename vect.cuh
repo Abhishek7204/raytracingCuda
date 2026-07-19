@@ -75,7 +75,7 @@ __host__ __device__ inline vect crossProduct(const vect &vec1,
               vec1[0] * vec2[1] - vec1[1] * vec2[0]);
 }
 
-__host__ __device__ inline vect unitVect(const vect &vec) {
+__host__ __device__ inline vect unitVector(const vect &vec) {
   return vec / vec.len();
 }
 

@@ -15,21 +15,6 @@ void check_cuda(cudaError_t result, char const *const func,
   }
 }
 
-__device__ bool hasHitSphere(const ray &r, const point3 &center,
-                             double radius) {
-  // (C - P).(C - P) = (Cx - x)^2 + (Cy - y)^2 + (Cz - z)^2 = r^2
-  // (C - (Q + dt)).(C - (Q + dt)) = r^2
-  // t^2 d.d - 2td.(C-Q)+(C-Q).(C-Q) - r^2 = 0
-  // a = d.d , b = -2d.(C-Q) , c = (C-Q).(C-Q) - r^2
-  // discriminant = sqrt(b^2 - 4ac) no of roots is no of points touching sphere
-  double a = dotProduct(r.direction(), r.direction());
-  double b = -2 * dotProduct(r.direction(), center - r.origin());
-  double c =
-      dotProduct(center - r.origin(), center - r.origin()) - radius * radius;
-  double discriminant = b * b - 4 * a * c;
-  return discriminant >= 0;
-}
-
 __global__ void render(vect *fb, int max_x, int max_y, point3 cameraCenter,
                        point3 vpFirstPixel, point3 vpHorizontalDel,
                        point3 vpVerticalDel) {
@@ -40,8 +25,7 @@ __global__ void render(vect *fb, int max_x, int max_y, point3 cameraCenter,
   int pixel_index = j * max_x + i;
   ray r(cameraCenter,
         vpFirstPixel + i * vpHorizontalDel + j * vpVerticalDel - cameraCenter);
-  fb[pixel_index] =
-      (hasHitSphere(r, point3(0, 0, -1), 0.5) ? color(1, 0, 0) : rayColor(r));
+  fb[pixel_index] = rayColor(r);
 }
 
 int main() {
