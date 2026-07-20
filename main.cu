@@ -1,3 +1,5 @@
+#include "camera.cuh"
+#include "curand_kernel.h"
 #include "hitable_list.cuh"
 #include "interval.cuh"
 #include "ray.cuh"
@@ -34,38 +36,49 @@ __device__ vect rayColor(const ray &r, hitable **world) {
   }
 }
 
-__global__ void render(vect *fb, int max_x, int max_y, vect lower_left_corner,
-                       vect horizontal, vect vertical, vect origin,
-                       hitable **world) {
+__global__ void render(vect *fb, int max_x, int max_y, int sampleCount,
+                       camera **cam, hitable **world) {
   int i = threadIdx.x + blockIdx.x * blockDim.x;
   int j = threadIdx.y + blockIdx.y * blockDim.y;
   if ((i >= max_x) || (j >= max_y))
     return;
   int pixel_index = j * max_x + i;
-  float u = float(i) / float(max_x);
-  float v = float(j) / float(max_y);
-  ray r(origin, lower_left_corner + u * horizontal + v * vertical);
-  fb[pixel_index] = rayColor(r, world);
+  curandState state;
+  curand_init(1984, pixel_index, 0, &state);
+
+  color sum(0, 0, 0);
+  for (int it = 0; it < sampleCount; it++) {
+    double u = double(i + curand_uniform(&state)) / double(max_x);
+    double v = double(j + curand_uniform(&state)) / double(max_y);
+    ray r = (*cam)->get_ray(u, v);
+    sum += rayColor(r, world);
+  }
+  fb[pixel_index] = sum / sampleCount;
 }
 
-__global__ void create_world(hitable **d_list, hitable **d_world) {
+__global__ void create_world(hitable **d_list, hitable **d_world,
+                             camera **d_camera) {
   if (threadIdx.x == 0 && blockIdx.x == 0) {
     *(d_list) = new sphere(vect(0, 0, -1), 0.5);
     *(d_list + 1) = new sphere(vect(0, -100.5, -1), 100);
     *d_world = new hitable_list(d_list, 2);
+    *d_camera = new camera();
   }
 }
 
-__global__ void free_world(hitable **d_list, hitable **d_world) {
+__global__ void free_world(hitable **d_list, hitable **d_world,
+                           camera **d_camera) {
   delete *(d_list);
   delete *(d_list + 1);
   delete *d_world;
+  delete *d_camera;
 }
 
 int main() {
   double aspectRatio = 16.0 / 9.0;
   int nx = 1280;
   int ny = max(1, static_cast<int>(nx / aspectRatio));
+  int sampleCount = 100;
   int tx = 16;
   int ty = 16;
 
@@ -86,7 +99,9 @@ int main() {
   checkCudaErrors(cudaMalloc((void **)&d_list, 2 * sizeof(hitable *)));
   hitable **d_world;
   checkCudaErrors(cudaMalloc((void **)&d_world, sizeof(hitable *)));
-  create_world<<<1, 1>>>(d_list, d_world);
+  camera **d_camera;
+  checkCudaErrors(cudaMalloc((void **)&d_camera, sizeof(camera *)));
+  create_world<<<1, 1>>>(d_list, d_world, d_camera);
   checkCudaErrors(cudaGetLastError());
   checkCudaErrors(cudaDeviceSynchronize());
 
@@ -95,9 +110,7 @@ int main() {
   // Render our buffer
   dim3 blocks((nx + tx - 1) / tx, (ny + ty - 1) / ty);
   dim3 threads(tx, ty);
-  render<<<blocks, threads>>>(fb, nx, ny, vect(-2.0, -1.0, -1.0),
-                              vect(4.0, 0.0, 0.0), vect(0.0, 2.0, 0.0),
-                              vect(0.0, 0.0, 0.0), d_world);
+  render<<<blocks, threads>>>(fb, nx, ny, sampleCount, d_camera, d_world);
   checkCudaErrors(cudaGetLastError());
   checkCudaErrors(cudaDeviceSynchronize());
   stop = clock();
@@ -118,7 +131,7 @@ int main() {
 
   // clean up
   checkCudaErrors(cudaDeviceSynchronize());
-  free_world<<<1, 1>>>(d_list, d_world);
+  free_world<<<1, 1>>>(d_list, d_world, d_camera);
   checkCudaErrors(cudaGetLastError());
   checkCudaErrors(cudaFree(d_list));
   checkCudaErrors(cudaFree(d_world));
