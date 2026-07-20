@@ -5,14 +5,14 @@ NVCC := $(CUDA_PATH)/bin/nvcc -ccbin $(HOST_COMPILER)
 
 IMGVIEWER := gwenview
 
-SRC := $(wildcard *.cu)
+SRC := main.cu
 OBJ := $(SRC:.cu=.o)
 HDR := $(wildcard *.cuh *.h *.hpp)
 
 TARGET := cudart.out
 IMG := out.ppm
 
-NVCCFLAGS := -g -G -m64 -rdc=true
+NVCCFLAGS := -rdc=true
 
 all: $(IMG)
 

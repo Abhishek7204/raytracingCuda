@@ -17,6 +17,4 @@ public:
   __device__ const point3 at(double t) const { return org + dir * t; }
 };
 
-__device__ color rayColor(const ray &r);
-__device__ double hitSphere(const ray &r, const point3 &center, double radius);
 #endif
