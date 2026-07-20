@@ -1,4 +1,5 @@
 #include "hitable_list.cuh"
+#include "interval.cuh"
 #include "ray.cuh"
 #include "rt_utility.cuh"
 #include "sphere.cuh"
@@ -23,7 +24,7 @@ void check_cuda(cudaError_t result, char const *const func,
 
 __device__ vect rayColor(const ray &r, hitable **world) {
   hitRecord rec;
-  if ((*world)->hit(r, 0.0, infinity, rec)) {
+  if ((*world)->hit(r, interval(0, infinity), rec)) {
     return 0.5f * vect(rec.hitNormal.x() + 1.0f, rec.hitNormal.y() + 1.0f,
                        rec.hitNormal.z() + 1.0f);
   } else {
@@ -64,7 +65,7 @@ __global__ void free_world(hitable **d_list, hitable **d_world) {
 int main() {
   double aspectRatio = 16.0 / 9.0;
   int nx = 1280;
-  int ny = 720;
+  int ny = max(1, static_cast<int>(nx / aspectRatio));
   int tx = 16;
   int ty = 16;
 

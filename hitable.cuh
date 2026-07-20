@@ -1,6 +1,7 @@
 #ifndef HITABLEH
 #define HITABLEH
 
+#include "interval.cuh"
 #include "ray.cuh"
 
 class hitRecord {
@@ -12,8 +13,9 @@ public:
 
 class hitable {
 public:
-  __device__ virtual bool hit(const ray &r, float t_min, float t_max,
+  __device__ virtual bool hit(const ray &r, interval ray_t,
                               hitRecord &rec) const = 0;
+  __device__ virtual ~hitable() = default;
 };
 
 #endif
