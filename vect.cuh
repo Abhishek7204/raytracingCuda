@@ -26,6 +26,10 @@ public:
 
   __host__ __device__ double lenSquared() const;
   __host__ __device__ double len() const;
+  __host__ __device__ bool nearZero() const {
+    double epsilon = 1e-8;
+    return (abs(v[0]) < epsilon && abs(v[1]) < epsilon && abs(v[2]) < epsilon);
+  }
 };
 
 using point3 = vect;

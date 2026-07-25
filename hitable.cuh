@@ -4,11 +4,14 @@
 #include "interval.cuh"
 #include "ray.cuh"
 
+class material;
+
 class hitRecord {
 public:
   point3 contactPoint;
   vect hitNormal;
   double t;
+  material *mat;
 };
 
 class hitable {
