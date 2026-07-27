@@ -1,5 +1,6 @@
 #include "camera.cuh"
 #include "hitable_list.cuh"
+#include "interval.cuh"
 #include "material.cuh"
 #include "ray.cuh"
 #include "sphere.cuh"
@@ -33,7 +34,7 @@ __device__ vect rayColor(const ray &r, hitable **world,
   vect cur_attenuation = vect(1.0, 1.0, 1.0);
   for (int i = 0; i < 50; i++) {
     hitRecord rec;
-    if ((*world)->hit(cur_ray, interval(0.001f, FLT_MAX), rec)) {
+    if ((*world)->hit(cur_ray, interval(0.001f, infinity), rec)) {
       ray scattered;
       vect attenuation;
       if (rec.mat->scatter(cur_ray, rec, attenuation, scattered,
@@ -45,7 +46,7 @@ __device__ vect rayColor(const ray &r, hitable **world,
       }
     } else {
       vect unit_direction = unitVector(cur_ray.direction());
-      double t = 0.5f * (unit_direction.y() + 1.0f);
+      float t = 0.5f * (unit_direction.y() + 1.0f);
       vect c = (1.0f - t) * vect(1.0, 1.0, 1.0) + t * vect(0.5, 0.7, 1.0);
       return cur_attenuation * c;
     }
@@ -90,21 +91,21 @@ __global__ void create_world(hitable **d_list, hitable **d_world,
                              camera **d_camera) {
   if (threadIdx.x == 0 && blockIdx.x == 0) {
     d_list[0] =
-        new sphere(vect(0, 0, -1), 0.5, new lambertian(vect(0.8, 0.3, 0.3)));
+        new sphere(vect(0, 0, -1), 0.5, new lambertian(vect(0.1, 0.2, 0.5)));
     d_list[1] = new sphere(vect(0, -100.5, -1), 100,
                            new lambertian(vect(0.8, 0.8, 0.0)));
     d_list[2] =
-        new sphere(vect(1, 0, -1), 0.5, new metal(vect(0.8, 0.6, 0.2), 1.0));
-    d_list[3] =
-        new sphere(vect(-1, 0, -1), 0.5, new metal(vect(0.8, 0.8, 0.8), 0.3));
-    *d_world = new hitable_list(d_list, 4);
+        new sphere(vect(1, 0, -1), 0.5, new metal(vect(0.8, 0.6, 0.2), 0.0));
+    d_list[3] = new sphere(vect(-1, 0, -1), 0.5, new dielectric(1.5));
+    d_list[4] = new sphere(vect(-1, 0, -1), -0.45, new dielectric(1.5));
+    *d_world = new hitable_list(d_list, 5);
     *d_camera = new camera();
   }
 }
 
 __global__ void free_world(hitable **d_list, hitable **d_world,
                            camera **d_camera) {
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 5; i++) {
     delete ((sphere *)d_list[i])->mat;
     delete d_list[i];
   }
@@ -122,8 +123,8 @@ int main() {
   std::cerr << "Rendering a " << nx << "x" << ny << " image with " << ns
             << " samples per pixel ";
   std::cerr << "in " << tx << "x" << ty << " blocks.\n";
-  freopen("out.ppm", "w", stdout);
 
+  freopen("out.ppm", "w", stdout);
   int num_pixels = nx * ny;
   size_t fb_size = num_pixels * sizeof(vect);
 
@@ -138,7 +139,7 @@ int main() {
 
   // make our world of hitables & the camera
   hitable **d_list;
-  checkCudaErrors(cudaMalloc((void **)&d_list, 4 * sizeof(hitable *)));
+  checkCudaErrors(cudaMalloc((void **)&d_list, 5 * sizeof(hitable *)));
   hitable **d_world;
   checkCudaErrors(cudaMalloc((void **)&d_world, sizeof(hitable *)));
   camera **d_camera;
