@@ -1,6 +1,5 @@
 #include "camera.cuh"
 #include "hitable_list.cuh"
-#include "interval.cuh"
 #include "material.cuh"
 #include "ray.cuh"
 #include "sphere.cuh"
@@ -76,7 +75,7 @@ __global__ void render(vect *fb, int max_x, int max_y, int ns, camera **cam,
   for (int s = 0; s < ns; s++) {
     float u = float(i + curand_uniform(&local_rand_state)) / float(max_x);
     float v = float(j + curand_uniform(&local_rand_state)) / float(max_y);
-    ray r = (*cam)->get_ray(u, v);
+    ray r = (*cam)->get_ray(u, v, &local_rand_state);
     col += rayColor(r, world, &local_rand_state);
   }
   rand_state[pixel_index] = local_rand_state;
@@ -99,8 +98,12 @@ __global__ void create_world(hitable **d_list, hitable **d_world,
     d_list[3] = new sphere(vect(-1, 0, -1), 0.5, new dielectric(1.5));
     d_list[4] = new sphere(vect(-1, 0, -1), -0.45, new dielectric(1.5));
     *d_world = new hitable_list(d_list, 5);
-    *d_camera = new camera(vect(-2, 2, 1), vect(0, 0, -1), vect(0, 1, 0), 20.0,
-                           float(nx) / float(ny));
+    vect lookfrom(3, 3, 2);
+    vect lookat(0, 0, -1);
+    float dist_to_focus = (lookfrom - lookat).len();
+    float aperture = 2.0;
+    *d_camera = new camera(lookfrom, lookat, vect(0, 1, 0), 20.0,
+                           float(nx) / float(ny), aperture, dist_to_focus);
   }
 }
 
@@ -125,10 +128,10 @@ int main() {
             << " samples per pixel ";
   std::cerr << "in " << tx << "x" << ty << " blocks.\n";
 
-  freopen("out.ppm", "w", stdout);
   int num_pixels = nx * ny;
   size_t fb_size = num_pixels * sizeof(vect);
 
+  freopen("out.ppm", "w", stdout);
   // allocate FB
   vect *fb;
   checkCudaErrors(cudaMallocManaged((void **)&fb, fb_size));
